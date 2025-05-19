@@ -15,13 +15,6 @@ def nihao():
     """
     print("Nihao")
 
-def zdcfasfawf():
-    """
-    打印 zdcfasfawf
-    """
-    print("zdcfasfawf")
-
 if __name__ == "__main__":
     hello_world()
     nihao()
-    zdcfasfawf()
