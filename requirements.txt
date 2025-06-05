@@ -1,0 +1,7 @@
+PyQt6
+numpy
+opencv-python
+requests
+openpyxl
+pillow
+pytesseract 
