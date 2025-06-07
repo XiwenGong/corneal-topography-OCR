@@ -17,7 +17,7 @@ from collections import defaultdict
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QLabel, QPushButton, 
                             QVBoxLayout, QHBoxLayout, QProgressBar, QTextEdit, QMessageBox)
 from PyQt6.QtGui import QPixmap, QPainter, QColor, QFont, QFontMetrics, QDragEnterEvent, QDropEvent
-from PyQt6.QtCore import Qt, QRect, QSize, pyqtSignal, QMimeData
+from PyQt6.QtCore import Qt, QRect, QSize, pyqtSignal, QMimeData, QThread
 
 def get_project_root():
     """
@@ -454,94 +454,52 @@ def exec_code(code_str, local_vars):
     except Exception as e:
         print(f'执行动态代码出错: {e}')
 
-def recognize_images(classify_result: dict) -> dict:
-    """
-    主识别流程
-    classify_result: {图片名: 类别}
-    返回: {图片名: [ {area_name, type, coords, text}, ... ] }
-    """
-    # 路径准备
-    images_dir = os.path.join(get_lin_shi_dir(), 'dai_shi_bie')
-    pkl_path = os.path.join(get_mu_ban_dir(), 'shared_data.pkl')
+class RecognizeThread(QThread):
+    progress_signal = pyqtSignal(int)  # 当前已识别数量
+    result_signal = pyqtSignal(dict)   # 最终识别结果
 
-    # 读取识别区划分方案等
-    schemes, global_basic_types = load_recognition_schemes(pkl_path)
+    def __init__(self, classify_result):
+        super().__init__()
+        self.classify_result = classify_result
 
-    # 获取access_token
-    access_token = get_access_token()
-    if not access_token:
-        print('获取access_token失败，无法进行百度OCR识别！')
-        return {}
-
-    # 读取pkl3标注
-    with open(pkl_path, 'rb') as f:
-        all_data = pickle.load(f)
-
-    results = {}
-    for img_name, img_type in classify_result.items():
-        img_path = os.path.join(images_dir, img_name)
-        image = cv2.imread(img_path)
-        if image is None:
-            results[img_name] = [{'error': '图片无法读取'}]
-            continue
-        img_result = []
-        # 读取该图片的pkl3标注
-        pkl3_data = all_data.get(img_type, {}).get('pkl3', {})
-        boxes = pkl3_data.get('boxes', [])
-        # 遍历所有框，按type对应basic_type_x
-        for box in boxes:
-            box_type = box.get('type')
-            area_name = box.get('area_name') or f'basic_type_{box_type}'
-            pt1 = box.get('pt1')
-            pt2 = box.get('pt2')
-            print(f"[调试] box: type={box_type}, area_name={area_name}, pt1={pt1}, pt2={pt2}")
-            if not (1 <= box_type <= 4):
+    def run(self):
+        import numpy as np
+        import cv2
+        results = {}
+        images_dir = os.path.join(get_lin_shi_dir(), 'dai_shi_bie')
+        pkl_path = os.path.join(get_mu_ban_dir(), 'shared_data.pkl')
+        schemes, global_basic_types = load_recognition_schemes(pkl_path)
+        access_token = get_access_token()
+        with open(pkl_path, 'rb') as f:
+            all_data = pickle.load(f)
+        images = list(self.classify_result.items())
+        total = len(images)
+        for idx, (img_name, img_type) in enumerate(images):
+            img_path = os.path.join(images_dir, img_name)
+            image = cv2.imread(img_path)
+            if image is None:
+                results[img_name] = [{'error': '图片无法读取'}]
+                self.progress_signal.emit(idx + 1)
                 continue
-            basic_type_key = f'basic_type_{box_type}'
-            area_info = global_basic_types.get(basic_type_key, {})
-            if not pt1 or not pt2:
-                img_result.append({'area_name': area_name, 'type': box_type, 'coords': None, 'text': '无区域坐标'})
-                print(f"[调试] 跳过box: type={box_type}, area_name={area_name}，无坐标")
-                continue
-            x1, y1 = pt1
-            x2, y2 = pt2
-            roi = image[min(y1, y2):max(y1, y2), min(x1, x2):max(x1, x2)]
-            pre_code = area_info.get('预处理方案', '')
-            if pre_code:
-                local_vars = {'img': roi, 'np': np, 'cv2': cv2}
-                exec_code(pre_code, local_vars)
-                roi = local_vars.get('img', roi)
-            ocr_engine_name = area_info.get('OCR引擎', 'tesseractOCR')
-            ocr_func = OCR_ENGINES.get(ocr_engine_name, tesseract_ocr)
-            if ocr_engine_name == '百度OCR':
-                ocr_result = ocr_func(roi, access_token)
-            else:
-                ocr_result = ocr_func(roi)
-            post_code = area_info.get('后处理方案', '')
-            if post_code:
-                local_vars = {'text': ocr_result}
-                exec_code(post_code, local_vars)
-                ocr_result = local_vars.get('text', ocr_result)
-            print(f"[调试] box识别内容: type={box_type}, area_name={area_name}, text={ocr_result}")
-            img_result.append({
-                'area_name': area_name,
-                'type': box_type,
-                'coords': (x1, y1, x2, y2),
-                'text': ocr_result
-            })
-        # 2. 处理pkl5下的所有非basic_type_x区（如有）
-        type_scheme = schemes.get(img_type)
-        if type_scheme:
-            for area_name, area_info in type_scheme.items():
-                if area_name.startswith('basic_type_'):
-                    continue  # 跳过与全局重复的basic_type_x
-                coords = area_info.get('coords')
-                if not coords:
-                    img_result.append({'area_name': area_name, 'type': None, 'coords': None, 'text': '无区域坐标'})
-                    print(f"[调试] 跳过pkl5区: area_name={area_name}，无坐标")
+            img_result = []
+            # 读取该图片的pkl3标注
+            pkl3_data = all_data.get(img_type, {}).get('pkl3', {})
+            boxes = pkl3_data.get('boxes', [])
+            for box in boxes:
+                box_type = box.get('type')
+                area_name = box.get('area_name') or f'basic_type_{box_type}'
+                pt1 = box.get('pt1')
+                pt2 = box.get('pt2')
+                if not (1 <= box_type <= 4):
                     continue
-                x1, y1, x2, y2 = coords
-                roi = image[y1:y2, x1:x2]
+                basic_type_key = f'basic_type_{box_type}'
+                area_info = global_basic_types.get(basic_type_key, {})
+                if not pt1 or not pt2:
+                    img_result.append({'area_name': area_name, 'type': box_type, 'coords': None, 'text': '无区域坐标'})
+                    continue
+                x1, y1 = pt1
+                x2, y2 = pt2
+                roi = image[min(y1, y2):max(y1, y2), min(x1, x2):max(x1, x2)]
                 pre_code = area_info.get('预处理方案', '')
                 if pre_code:
                     local_vars = {'img': roi, 'np': np, 'cv2': cv2}
@@ -558,33 +516,74 @@ def recognize_images(classify_result: dict) -> dict:
                     local_vars = {'text': ocr_result}
                     exec_code(post_code, local_vars)
                     ocr_result = local_vars.get('text', ocr_result)
-                print(f"[调试] pkl5区识别内容: area_name={area_name}, text={ocr_result}")
                 img_result.append({
                     'area_name': area_name,
-                    'type': None,
+                    'type': box_type,
                     'coords': (x1, y1, x2, y2),
                     'text': ocr_result
                 })
-        results[img_name] = img_result
-    return results
+            # 处理pkl5下的所有非basic_type_x区（如有）
+            type_scheme = schemes.get(img_type)
+            if type_scheme:
+                for area_name, area_info in type_scheme.items():
+                    if area_name.startswith('basic_type_'):
+                        continue
+                    coords = area_info.get('coords')
+                    if not coords:
+                        img_result.append({'area_name': area_name, 'type': None, 'coords': None, 'text': '无区域坐标'})
+                        continue
+                    x1, y1, x2, y2 = coords
+                    roi = image[y1:y2, x1:x2]
+                    pre_code = area_info.get('预处理方案', '')
+                    if pre_code:
+                        local_vars = {'img': roi, 'np': np, 'cv2': cv2}
+                        exec_code(pre_code, local_vars)
+                        roi = local_vars.get('img', roi)
+                    ocr_engine_name = area_info.get('OCR引擎', 'tesseractOCR')
+                    ocr_func = OCR_ENGINES.get(ocr_engine_name, tesseract_ocr)
+                    if ocr_engine_name == '百度OCR':
+                        ocr_result = ocr_func(roi, access_token)
+                    else:
+                        ocr_result = ocr_func(roi)
+                    post_code = area_info.get('后处理方案', '')
+                    if post_code:
+                        local_vars = {'text': ocr_result}
+                        exec_code(post_code, local_vars)
+                        ocr_result = local_vars.get('text', ocr_result)
+                    img_result.append({
+                        'area_name': area_name,
+                        'type': None,
+                        'coords': (x1, y1, x2, y2),
+                        'text': ocr_result
+                    })
+            results[img_name] = img_result
+            self.progress_signal.emit(idx + 1)
+        self.result_signal.emit(results)
 
 def recognize_with_progress(classify_result):
-    # 统计待识别图片
     images_dir = os.path.join(get_lin_shi_dir(), 'dai_shi_bie')
     image_files = [f for f in os.listdir(images_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tiff', '.webp'))]
     total = len(image_files)
     ocr_result = {}
-    def process_func(update_copy, update_judge, update_recognize):
-        # 复制阶段跳过
-        update_copy(total)
-        # 判断阶段跳过
-        update_judge(total)
-        # 识别阶段
-        result = recognize_images(classify_result)
-        for i, _ in enumerate(result):
-            update_recognize(i+1)
+
+    app = QApplication.instance() or QApplication(sys.argv)
+    win = ProgressWindow(total, total, total)
+    win.show()
+    win.update_copy(total)
+    win.update_judge(total)
+
+    # 启动识别线程
+    thread = RecognizeThread(classify_result)
+    def on_progress(val):
+        win.update_recognize(val)
+    def on_result(result):
         ocr_result.update(result)
-    show_progress_window(total, total, total, process_func)
+        win.close()
+        app.quit()
+    thread.progress_signal.connect(on_progress)
+    thread.result_signal.connect(on_result)
+    thread.start()
+    app.exec()
     return ocr_result
 
 # 原 ocr4.py 内容

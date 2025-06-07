@@ -1,0 +1,3 @@
+requests==2.31.0
+python-dotenv==1.0.0
+DEEPSEEK_API_KEY=sk-d29b25767b0846fcb5ec405e087a27e7

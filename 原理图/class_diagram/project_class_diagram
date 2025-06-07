@@ -1,0 +1,21 @@
+// 角膜地形图OCR项目类图
+digraph {
+	rankdir=BT
+	node [fontname="Microsoft YaHei" shape=record]
+	edge [fontname="Microsoft YaHei"]
+	DataManager [label="{DataManager|+ pkl_file: str\l+ data: Dict\l|+ __init__(pkl_file: str)\l+ _load_data() -> Dict\l+ save_data(alias: str, script_name: str, data: dict) -> bool\l+ get_data(alias: str, script_name: str) -> Any\l+ set_global_data(key: str, value: any) -> bool\l+ get_global_data(key: str) -> any\l}"]
+	ImageWindow [label="{ImageWindow|+ original_pixmap: QPixmap\l+ saved_size: tuple\l+ saved_alias: str\l+ data_manager: DataManager\l|+ __init__(data_manager: DataManager)\l+ dragEnterEvent(event: QDragEnterEvent)\l+ dropEvent(event: QDropEvent)\l+ save_current_size()\l}"]
+	TypeSchemeWindow [label="{TypeSchemeWindow|+ alias: str\l+ data_manager: DataManager\l|+ __init__(alias: str, data_manager: DataManager)\l+ load_existing_scheme()\l+ save_scheme()\l}"]
+	ShowImageWindow [label="{ShowImageWindow|+ data_manager: DataManager\l+ alias: str\l+ image_path: str\l+ size: tuple\l|+ __init__(image_path: str, size: tuple, alias: str, data_manager: DataManager)\l+ end_annotate()\l}"]
+	OCREditWindow [label="{OCREditWindow|+ alias: str\l+ data_manager: DataManager\l|+ __init__(alias: str, data_manager: DataManager)\l+ load_existing()\l+ save_data()\l}"]
+	BasicTypeEditWindow [label="{BasicTypeEditWindow|+ data_manager: DataManager\l|+ __init__(data_manager: DataManager)\l+ load_existing()\l+ save_data()\l}"]
+	DropWindow [label="{DropWindow|+ target_dir: str\l|+ __init__()\l+ dragEnterEvent(event: QDragEnterEvent)\l+ dropEvent(event: QDropEvent)\l+ is_image_file(file_path: str) -> bool\l}"]
+	ResultOverlayWindow [label="{ResultOverlayWindow|+ image_paths: list\l+ ocr_results: dict\l+ index: int\l|+ __init__(image_paths: list, ocr_results: dict, get_display_info_func)\l+ show_result(index: int, display_info: dict)\l+ paintEvent(event)\l}"]
+	ProgressWindow [label="{ProgressWindow|+ total_copy: int\l+ total_judge: int\l+ total_recognize: int\l|+ __init__(total_copy: int, total_judge: int, total_recognize: int)\l+ update_copy(val: int)\l+ update_judge(val: int)\l+ update_recognize(val: int)\l}"]
+	ImageWindow -> DataManager [label="使用"]
+	TypeSchemeWindow -> DataManager [label="使用"]
+	ShowImageWindow -> DataManager [label="使用"]
+	OCREditWindow -> DataManager [label="使用"]
+	BasicTypeEditWindow -> DataManager [label="使用"]
+	ResultOverlayWindow -> ProgressWindow [label="使用"]
+}
