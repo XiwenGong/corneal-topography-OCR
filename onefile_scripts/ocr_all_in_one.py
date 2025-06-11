@@ -33,11 +33,25 @@ def get_project_root():
         current_dir = os.path.dirname(os.path.abspath(__file__))  # onefile_scripts
         return os.path.dirname(current_dir)  # 项目根目录
 
+def get_resource_path(relative_path):
+    """
+    获取资源文件的绝对路径
+    如果是exe运行，则从临时目录获取
+    如果是脚本运行，则从项目目录获取
+    """
+    if getattr(sys, 'frozen', False):
+        # 如果是exe运行
+        base_path = sys._MEIPASS
+    else:
+        # 如果是脚本运行
+        base_path = get_project_root()
+    return os.path.join(base_path, relative_path)
+
 def get_mu_ban_dir():
     """
     获取mu_ban目录
     """
-    mu_ban_dir = os.path.join(get_project_root(), 'mu_ban')
+    mu_ban_dir = get_resource_path('mu_ban')
     os.makedirs(mu_ban_dir, exist_ok=True)
     return mu_ban_dir
 
@@ -45,7 +59,7 @@ def get_lin_shi_dir():
     """
     获取lin_shi目录
     """
-    lin_shi_dir = os.path.join(get_project_root(), 'lin_shi')
+    lin_shi_dir = get_resource_path('lin_shi')
     os.makedirs(lin_shi_dir, exist_ok=True)
     return lin_shi_dir
 
@@ -53,7 +67,7 @@ def get_results_dir():
     """
     获取results目录
     """
-    results_dir = os.path.join(get_project_root(), 'results')
+    results_dir = get_resource_path('results')
     os.makedirs(results_dir, exist_ok=True)
     return results_dir
 

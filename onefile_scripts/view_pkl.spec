@@ -2,10 +2,10 @@
 
 
 a = Analysis(
-    ['d:\\projects\\corneal-topography-OCR\\onefile_scripts\\ocr_all_in_one.py'],
+    ['d:\\projects\\corneal-topography-OCR\\mu_ban\\view_pkl.py'],
     pathex=[],
     binaries=[],
-    datas=[('d:\\projects\\corneal-topography-OCR\\mu_ban', 'mu_ban'), ('d:\\projects\\corneal-topography-OCR\\lin_shi', 'lin_shi'), ('d:\\projects\\corneal-topography-OCR\\results', 'results')],
+    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='ocr_all_in_one',
+    name='view_pkl',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

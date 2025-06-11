@@ -4,6 +4,17 @@ import sys
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTextEdit, QVBoxLayout, QWidget
 from PyQt6.QtCore import Qt
 
+def get_base_dir():
+    """
+    获取当前运行目录（支持exe和源码两种方式）
+    """
+    if getattr(sys, 'frozen', False):
+        # exe模式
+        return os.path.dirname(sys.executable)
+    else:
+        # 脚本模式
+        return os.path.dirname(os.path.abspath(__file__))
+
 def format_data(data: dict) -> str:
     """
     美化格式化pkl数据，包括全局数据，所有键值对之间自动换行，值多行时后续行缩进
@@ -77,7 +88,7 @@ class PklViewer(QMainWindow):
         """
         加载并显示pkl文件内容
         """
-        pkl_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'shared_data.pkl')
+        pkl_path = os.path.join(get_base_dir(), 'shared_data.pkl')
         
         if not os.path.exists(pkl_path):
             self.text_edit.setText(f"文件不存在：{pkl_path}")

@@ -2,16 +2,17 @@
 
 
 a = Analysis(
-    ['d:\\biyesheji\\corneal-topography-OCR\\onefile_scripts\\edit_all_in_one.py'],
+    ['d:\\projects\\corneal-topography-OCR\\onefile_scripts\\edit_all_in_one.py'],
     pathex=[],
     binaries=[],
-    datas=[('d:\\biyesheji\\corneal-topography-OCR\\mu_ban', 'mu_ban'), ('d:\\biyesheji\\corneal-topography-OCR\\lin_shi', 'lin_shi')],
+    datas=[('d:\\projects\\corneal-topography-OCR\\mu_ban', 'mu_ban'), ('d:\\projects\\corneal-topography-OCR\\lin_shi', 'lin_shi')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
     noarchive=False,
+    optimize=0,
 )
 pyz = PYZ(a.pure)
 
